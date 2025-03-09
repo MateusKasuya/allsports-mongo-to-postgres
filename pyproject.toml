@@ -1,0 +1,38 @@
+[project]
+name = "mongo-to-postgres"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Mateus Kasuya",email = "mateusvbkasuya@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12,<4.0"
+dependencies = [
+    "python-dotenv (>=1.0.1,<2.0.0)",
+    "pymongo (>=4.11.2,<5.0.0)",
+    "pandas (>=2.2.3,<3.0.0)",
+    "sqlalchemy (>=2.0.38,<3.0.0)",
+    "psycopg2-binary (>=2.9.10,<3.0.0)"
+
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+[tool.poetry.group.dev.dependencies]
+isort = "^6.0.1"
+blue = "^0.9.1"
+taskipy = "^1.14.1"
+pytest = "^8.3.5"
+
+[tool.isort]
+profile = "black"
+known_third_party= []
+
+[tool.taskipy.tasks]
+
+format = "isort . && blue ."
+test = "poetry run pytest tests -v"
+run = "python src/main.py"
+
