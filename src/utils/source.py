@@ -18,7 +18,7 @@ class MongoDBProcess:
         self.client = MongoClient(uri)
 
     def read_nosql(
-        self, database_name: str, collection_name: str, query: dict = {}
+        self, database_name: str, collection_name: str, query: dict = None
     ) -> List[dict]:
         """
         Lê documentos de uma coleção no MongoDB.
@@ -28,6 +28,10 @@ class MongoDBProcess:
         :param query: dict - Critério de consulta (opcional, padrão é vazio).
         :return: List[dict] - Lista de documentos encontrados.
         """
+
+        if query is None:
+            query = {}
+
         try:
             collection = self.client[database_name][collection_name]
             return list(collection.find(query))
