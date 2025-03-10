@@ -12,6 +12,7 @@ def mock_mongo():
         mock_instance = mock_client.return_value
         return MongoDBProcess('mongodb://fake-uri')
 
+
 def test_read_success(mock_mongo):
     """Testa se a leitura retorna os documentos corretamente"""
     mock_mongo.client['test_db']['test_collection'].find.return_value = [

@@ -12,6 +12,7 @@ from src.utils.destination import (  # Ajuste conforme sua estrutura de diretór
 def db_engine():
     return DbEngine()
 
+
 def test_postgres_engine(db_engine):
     with patch('src.utils.destination.create_engine') as mock_create_engine:
         mock_create_engine.return_value = MagicMock()

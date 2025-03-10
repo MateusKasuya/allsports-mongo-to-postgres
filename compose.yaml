@@ -1,0 +1,39 @@
+services:
+  db_allsports:
+    image: postgres
+    container_name: db_allsports
+    restart: always
+    shm_size: 128mb
+    env_file:
+      - .env
+    networks:
+      - mvp_mongo-compose-network
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - 5434:5432  # Expor a porta para conexão externa
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "$POSTGRES_USER"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+
+  python-etl:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      db_allsports:
+        condition: service_healthy
+    env_file:
+      - .env
+    networks:
+      - mvp_mongo-compose-network
+
+volumes:
+  postgres-data:
+    driver: local
+
+networks:
+  mvp_mongo-compose-network:
+    external: True
