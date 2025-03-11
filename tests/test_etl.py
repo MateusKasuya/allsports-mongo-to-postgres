@@ -14,21 +14,26 @@ def etl_instance():
 
 
 def test_parsing_json(etl_instance):
-    """Testa se parsing_json retorna a lista esperada."""
+    """Testa se parsing_json retorna a lista esperada, incluindo `competition_schedules`."""
     etl_instance.read_nosql = MagicMock(
         return_value=[
             {
-                'sports': [
-                    {'id': 1, 'name': 'Futebol'},
-                    {'id': 2, 'name': 'Basquete'},
+                'schedules': [
+                    {
+                        'sport_event': {
+                            'id': 'sr:sport_event:52630061',
+                            'start_time': '2025-02-25T00:00:00+00:00',
+                            'status': 'ended',
+                        }
+                    }
                 ]
             }
         ]
     )
 
-    result = etl_instance.parsing_json('fake_db', 'sports')
+    result = etl_instance.parsing_json('fake_db', 'competition_schedules', 'schedules')
 
-    expected = [{'id': 1, 'name': 'Futebol'}, {'id': 2, 'name': 'Basquete'}]
+    expected = [{'id': 'sr:sport_event:52630061', 'start_time': '2025-02-25T00:00:00+00:00', 'status': 'ended'}]
     assert result == expected, 'Erro na extração de dados do MongoDB!'
 
 
@@ -57,6 +62,26 @@ def test_transform_to_df_with_nested_dict(etl_instance):
     assert 'details_country' in df.columns, 'A normalização do JSON falhou!'
     assert 'details_league' in df.columns, 'A normalização do JSON falhou!'
     assert df.shape == (2, 3), 'O DataFrame não está no formato esperado!'
+
+
+def test_transform_to_df_with_competitors(etl_instance):
+    """Testa se transform_to_df lida corretamente com a coluna `competitors`."""
+    data = [
+        {
+            'id': 'sr:sport_event:52630061',
+            'start_time': '2025-02-25T00:00:00+00:00',
+            'competitors': [
+                {'id': 'sr:competitor:3431', 'name': 'Washington Wizards'},
+                {'id': 'sr:competitor:3436', 'name': 'Brooklyn Nets'}
+            ]
+        }
+    ]
+
+    df = etl_instance.transform_to_df(data)
+
+    assert 'competitor_id' in df.columns, 'A normalização de `competitors` falhou!'
+    assert 'competitor_name' in df.columns, 'A normalização de `competitors` falhou!'
+    assert df.shape == (2, 4), 'A normalização da lista não ocorreu corretamente!'
 
 
 @patch('pandas.DataFrame.to_sql')

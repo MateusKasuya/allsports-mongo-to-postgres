@@ -32,26 +32,37 @@ def main():
             database=os.getenv('POSTGRES_DB'),
         )
 
-        logging.info('Coletando dados do Mongo e tratando-os')
-        json_to_list = pipeline.parsing_json(
-            database_name='odds', collection_name='sports'
-        )
+        dict_collection_key = {
+            #"sports" : "sports",
+            #"sports_competition" : "competitions",
+            "competition_schedules" : "schedules"
+        }
+
+        for collection_name, key_collection in dict_collection_key.items():
+            logging.info(f"Iniciando Collection: {collection_name}, Key: {key_collection}")
+
+            logging.info('Coletando dados do Mongo e tratando-os')
+            json_to_list = pipeline.parsing_json(
+                database_name='odds', collection_name=collection_name, key_collection=key_collection
+            )
+
+            if not json_to_list:
+                logging.warning(
+                    'Nenhum dado foi extraído do MongoDB. Pipeline encerrada.'
+                )
+                continue
+
+            logging.info('Transformando dados em DF')
+            df = pipeline.transform_to_df(json_to_list)
+
+            logging.info('Carregando dados no Postgres')
+            pipeline.load_to_destination(
+                engine=destination_engine, df=df, table=key_collection
+            )
+
+            logging.info(f"Collection: {collection_name}, Key: {key_collection} finalizada com sucesso")
 
         pipeline.close_client()
-
-        if not json_to_list:
-            logging.warning(
-                'Nenhum dado foi extraído do MongoDB. Pipeline encerrada.'
-            )
-            return
-
-        logging.info('Transformando dados em DF')
-        df = pipeline.transform_to_df(json_to_list)
-
-        logging.info('Carregando dados no Postgres')
-        pipeline.load_to_destination(
-            engine=destination_engine, df=df, table='sports'
-        )
 
         pipeline.close_engine(engine=destination_engine)
 
