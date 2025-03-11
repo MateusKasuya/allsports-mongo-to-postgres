@@ -32,7 +32,7 @@ class ETLProcess(MongoDBProcess, DbEngine):
         self.engine = None  # Engine do PostgreSQL será inicializada depois
 
     def parsing_json(
-        self, database_name: str, collection_name: str, query: dict = None
+        self, database_name: str, collection_name: str, key_collection: str, query: dict = None
     ) -> list:
         """
         Extrai documentos do MongoDB e transforma em uma lista de dicionários.
@@ -49,11 +49,18 @@ class ETLProcess(MongoDBProcess, DbEngine):
         list_to_append = []
 
         for document in list_document:
-            # Evita KeyError caso a chave 'sports' não exista
-            data = document.get('sports', [])
+            # Evita KeyError caso a chave não exista
+            data = document.get(key_collection, [])
             list_to_append.extend(
                 data
             )  # Garante que apenas listas serão adicionadas
+
+            if collection_name == "competition_schedules":
+                sub_list_to_append = []
+                for dict_data in list_to_append:
+                    data = dict_data.get('sport_event', {})
+                    sub_list_to_append.append(data)
+                list_to_append = sub_list_to_append
 
         return list_to_append
 
@@ -65,20 +72,31 @@ class ETLProcess(MongoDBProcess, DbEngine):
         :return: pd.DataFrame - DataFrame tratado e pronto para carga.
         """
         if not list_to_transform:
-            return (
-                pd.DataFrame()
-            )  # Retorna DataFrame vazio caso a lista esteja vazia
+            return pd.DataFrame()  # Retorna um DataFrame vazio caso a lista esteja vazia
 
         df = pd.DataFrame(list_to_transform)
 
+        # Normaliza dicionários aninhados, exceto "competitors"
         for col in df.columns:
             if df[col].apply(lambda x: isinstance(x, dict)).any():
-                # Normaliza os dicionários transformando-os em colunas separadas
                 df_exploded = pd.json_normalize(df[col])
-                df_exploded.columns = [
-                    f'{col}_{subcol}' for subcol in df_exploded.columns
-                ]
+                df_exploded.columns = [f"{col}_{subcol}" for subcol in df_exploded.columns]
                 df = df.drop(columns=[col]).join(df_exploded)
+
+        # Tratamento específico para a coluna "competitors"
+        if "competitors" in df.columns:
+            # Explodir a lista para criar uma linha por competidor
+            df = df.explode("competitors")
+
+            # Normalizar os competidores
+            competitors_expanded = pd.json_normalize(df["competitors"])
+
+            # Ajustar nome das colunas para evitar conflitos
+            competitors_expanded.columns = [f"competitor_{col}" for col in competitors_expanded.columns]
+
+            # Remover a coluna original e adicionar os dados normalizados
+            df = df.drop(columns=["competitors"]).reset_index(drop=True)
+            df = pd.concat([df, competitors_expanded], axis=1)
 
         return df
 
