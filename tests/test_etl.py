@@ -24,6 +24,16 @@ def test_parsing_json(etl_instance):
                             'id': 'sr:sport_event:52630061',
                             'start_time': '2025-02-25T00:00:00+00:00',
                             'status': 'ended',
+                            'competitors': [
+                                {
+                                    'id': 'sr:competitor:3431',
+                                    'name': 'Washington Wizards',
+                                },
+                                {
+                                    'id': 'sr:competitor:3436',
+                                    'name': 'Brooklyn Nets',
+                                },
+                            ],
                         }
                     }
                 ]
@@ -31,9 +41,21 @@ def test_parsing_json(etl_instance):
         ]
     )
 
-    result = etl_instance.parsing_json('fake_db', 'competition_schedules', 'schedules')
+    result = etl_instance.parsing_json(
+        'fake_db', 'competition_schedules', 'schedules'
+    )
 
-    expected = [{'id': 'sr:sport_event:52630061', 'start_time': '2025-02-25T00:00:00+00:00', 'status': 'ended'}]
+    expected = [
+        {
+            'id': 'sr:sport_event:52630061',
+            'start_time': '2025-02-25T00:00:00+00:00',
+            'status': 'ended',
+            'competitors': [
+                {'id': 'sr:competitor:3431', 'name': 'Washington Wizards'},
+                {'id': 'sr:competitor:3436', 'name': 'Brooklyn Nets'},
+            ],
+        }
+    ]
     assert result == expected, 'Erro na extração de dados do MongoDB!'
 
 
@@ -72,16 +94,23 @@ def test_transform_to_df_with_competitors(etl_instance):
             'start_time': '2025-02-25T00:00:00+00:00',
             'competitors': [
                 {'id': 'sr:competitor:3431', 'name': 'Washington Wizards'},
-                {'id': 'sr:competitor:3436', 'name': 'Brooklyn Nets'}
-            ]
+                {'id': 'sr:competitor:3436', 'name': 'Brooklyn Nets'},
+            ],
         }
     ]
 
     df = etl_instance.transform_to_df(data)
 
-    assert 'competitor_id' in df.columns, 'A normalização de `competitors` falhou!'
-    assert 'competitor_name' in df.columns, 'A normalização de `competitors` falhou!'
-    assert df.shape == (2, 4), 'A normalização da lista não ocorreu corretamente!'
+    assert (
+        'competitors_id' in df.columns
+    ), 'A normalização de `competitors` falhou!'
+    assert (
+        'competitors_name' in df.columns
+    ), 'A normalização de `competitors` falhou!'
+    assert df.shape == (
+        2,
+        4,
+    ), 'A normalização da lista não ocorreu corretamente!'
 
 
 @patch('pandas.DataFrame.to_sql')

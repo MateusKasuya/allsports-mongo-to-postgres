@@ -33,17 +33,21 @@ def main():
         )
 
         dict_collection_key = {
-            #"sports" : "sports",
-            #"sports_competition" : "competitions",
-            "competition_schedules" : "schedules"
+            'sports': 'sports',
+            'sports_competition': 'competitions',
+            'competition_schedules': 'schedules',
         }
 
         for collection_name, key_collection in dict_collection_key.items():
-            logging.info(f"Iniciando Collection: {collection_name}, Key: {key_collection}")
+            logging.info(
+                f'Iniciando Collection: {collection_name}, Key: {key_collection}'
+            )
 
             logging.info('Coletando dados do Mongo e tratando-os')
             json_to_list = pipeline.parsing_json(
-                database_name='odds', collection_name=collection_name, key_collection=key_collection
+                database_name='odds',
+                collection_name=collection_name,
+                key_collection=key_collection,
             )
 
             if not json_to_list:
@@ -60,7 +64,9 @@ def main():
                 engine=destination_engine, df=df, table=key_collection
             )
 
-            logging.info(f"Collection: {collection_name}, Key: {key_collection} finalizada com sucesso")
+            logging.info(
+                f'Collection: {collection_name}, Key: {key_collection} finalizada com sucesso'
+            )
 
         pipeline.close_client()
 
