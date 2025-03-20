@@ -14,7 +14,7 @@ def etl_instance():
 
 
 def test_parsing_json(etl_instance):
-    """Testa se parsing_json retorna a lista esperada, incluindo `competition_schedules`."""
+    """Testa se parsing_json retorna a lista esperada."""
     etl_instance.read_nosql = MagicMock(
         return_value=[
             {
@@ -24,16 +24,6 @@ def test_parsing_json(etl_instance):
                             'id': 'sr:sport_event:52630061',
                             'start_time': '2025-02-25T00:00:00+00:00',
                             'status': 'ended',
-                            'competitors': [
-                                {
-                                    'id': 'sr:competitor:3431',
-                                    'name': 'Washington Wizards',
-                                },
-                                {
-                                    'id': 'sr:competitor:3436',
-                                    'name': 'Brooklyn Nets',
-                                },
-                            ],
                         }
                     }
                 ]
@@ -41,19 +31,13 @@ def test_parsing_json(etl_instance):
         ]
     )
 
-    result = etl_instance.parsing_json(
-        'fake_db', 'competition_schedules', 'schedules'
-    )
+    result = etl_instance.parsing_json('fake_db', 'competition_schedules', 'schedules')
 
     expected = [
         {
             'id': 'sr:sport_event:52630061',
             'start_time': '2025-02-25T00:00:00+00:00',
             'status': 'ended',
-            'competitors': [
-                {'id': 'sr:competitor:3431', 'name': 'Washington Wizards'},
-                {'id': 'sr:competitor:3436', 'name': 'Brooklyn Nets'},
-            ],
         }
     ]
     assert result == expected, 'Erro na extração de dados do MongoDB!'
@@ -62,14 +46,11 @@ def test_parsing_json(etl_instance):
 def test_transform_to_df(etl_instance):
     """Testa se transform_to_df converte corretamente uma lista de dicionários em um DataFrame."""
     data = [{'id': 1, 'name': 'Futebol'}, {'id': 2, 'name': 'Basquete'}]
-    df = etl_instance.transform_to_df(data)
+    df = etl_instance.transform_to_df(data, 'default')
 
     assert isinstance(df, pd.DataFrame), 'O retorno não é um DataFrame!'
     assert df.shape == (2, 2), 'O DataFrame não tem o formato esperado!'
-    assert list(df.columns) == [
-        'id',
-        'name',
-    ], 'Os nomes das colunas estão incorretos!'
+    assert list(df.columns) == ['id', 'name'], 'Os nomes das colunas estão incorretos!'
 
 
 def test_transform_to_df_with_nested_dict(etl_instance):
@@ -78,39 +59,29 @@ def test_transform_to_df_with_nested_dict(etl_instance):
         {'id': 1, 'details': {'country': 'Brasil', 'league': 'Série A'}},
         {'id': 2, 'details': {'country': 'EUA', 'league': 'NBA'}},
     ]
-
-    df = etl_instance.transform_to_df(data)
+    df = etl_instance.transform_to_df(data, 'default')
 
     assert 'details_country' in df.columns, 'A normalização do JSON falhou!'
     assert 'details_league' in df.columns, 'A normalização do JSON falhou!'
     assert df.shape == (2, 3), 'O DataFrame não está no formato esperado!'
 
 
-def test_transform_to_df_with_competitors(etl_instance):
-    """Testa se transform_to_df lida corretamente com a coluna `competitors`."""
+def test_transform_to_df_with_exploded_list(etl_instance):
+    """Testa se transform_to_df lida corretamente com listas aninhadas."""
     data = [
         {
             'id': 'sr:sport_event:52630061',
-            'start_time': '2025-02-25T00:00:00+00:00',
             'competitors': [
                 {'id': 'sr:competitor:3431', 'name': 'Washington Wizards'},
                 {'id': 'sr:competitor:3436', 'name': 'Brooklyn Nets'},
             ],
         }
     ]
+    df = etl_instance.transform_to_df(data, 'default')
 
-    df = etl_instance.transform_to_df(data)
-
-    assert (
-        'competitors_id' in df.columns
-    ), 'A normalização de `competitors` falhou!'
-    assert (
-        'competitors_name' in df.columns
-    ), 'A normalização de `competitors` falhou!'
-    assert df.shape == (
-        2,
-        4,
-    ), 'A normalização da lista não ocorreu corretamente!'
+    assert 'competitors_id' in df.columns, 'A normalização de `competitors` falhou!'
+    assert 'competitors_name' in df.columns, 'A normalização de `competitors` falhou!'
+    assert df.shape == (2, 3), 'A normalização da lista não ocorreu corretamente!'
 
 
 @patch('pandas.DataFrame.to_sql')
@@ -142,16 +113,11 @@ def test_load_to_destination_empty_df(mock_to_sql, etl_instance):
     mock_to_sql.assert_not_called()
 
 
-@patch(
-    'pandas.DataFrame.to_sql',
-    side_effect=SQLAlchemyError('Erro de banco de dados!'),
-)
+@patch('pandas.DataFrame.to_sql', side_effect=SQLAlchemyError('Erro de banco de dados!'))
 def test_load_to_destination_sqlalchemy_error(mock_to_sql, etl_instance):
     """Testa se load_to_destination captura erros do SQLAlchemy."""
     df = pd.DataFrame({'id': [1, 2], 'name': ['Futebol', 'Basquete']})
     mock_engine = MagicMock()
 
-    with pytest.raises(
-        RuntimeError, match="Erro ao inserir dados na tabela 'sports'"
-    ):
+    with pytest.raises(RuntimeError, match="Erro ao inserir dados na tabela 'sports'"):
         etl_instance.load_to_destination(mock_engine, df, 'sports')

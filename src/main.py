@@ -33,9 +33,12 @@ def main():
         )
 
         dict_collection_key = {
-            'sports': 'sports',
-            'sports_competition': 'competitions',
-            'competition_schedules': 'schedules',
+            # 'sports': 'sports',
+            # 'sports_competition': 'competitions',
+            # 'competition_schedules': 'schedules',
+            #'sport_event_player_props' : 'sport_event_players_props',
+           # 'sport_event_markets' : 'markets',
+           'outcomes' : 'markets'
         }
 
         for collection_name, key_collection in dict_collection_key.items():
@@ -57,12 +60,25 @@ def main():
                 continue
 
             logging.info('Transformando dados em DF')
-            df = pipeline.transform_to_df(json_to_list)
+            df = pipeline.transform_to_df(json_to_list, collection_name)
 
             logging.info('Carregando dados no Postgres')
-            pipeline.load_to_destination(
-                engine=destination_engine, df=df, table=key_collection
-            )
+
+            if collection_name == 'sport_event_markets':
+
+                pipeline.load_to_destination(
+                    engine=destination_engine, df=df, table=f'sport_event_{key_collection}'
+                )
+            
+            elif collection_name == 'outcomes': 
+                pipeline.load_to_destination(
+                    engine=destination_engine, df=df, table=f'sport_event_{key_collection}_outcomes'
+                )
+
+            else:
+                pipeline.load_to_destination(
+                    engine=destination_engine, df=df, table=key_collection
+                )
 
             logging.info(
                 f'Collection: {collection_name}, Key: {key_collection} finalizada com sucesso'
