@@ -37,8 +37,9 @@ def main():
             # 'sports_competition': 'competitions',
             # 'competition_schedules': 'schedules',
             #'sport_event_player_props' : 'sport_event_players_props',
+            'player_props_books': 'books',
            # 'sport_event_markets' : 'markets',
-           'outcomes' : 'markets'
+           #'outcomes' : 'markets'
         }
 
         for collection_name, key_collection in dict_collection_key.items():
@@ -73,6 +74,11 @@ def main():
             elif collection_name == 'outcomes': 
                 pipeline.load_to_destination(
                     engine=destination_engine, df=df, table=f'sport_event_{key_collection}_outcomes'
+                )
+
+            elif collection_name == 'player_props_books': 
+                pipeline.load_to_destination(
+                    engine=destination_engine, df=df, table=f'sport_event_player_props_{key_collection}_outcomes'
                 )
 
             else:

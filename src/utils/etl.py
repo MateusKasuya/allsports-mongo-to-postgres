@@ -51,6 +51,8 @@ class ETLProcess(MongoDBProcess, DbEngine):
 
         if collection_name == 'outcomes':
             list_document = self.read_nosql(database_name, 'sport_event_markets', query)
+        elif collection_name == 'player_props_books':
+            list_document = self.read_nosql(database_name, 'sport_event_player_props', query)
         else:
             list_document = self.read_nosql(database_name, collection_name, query)
         list_to_append = []
@@ -109,6 +111,30 @@ class ETLProcess(MongoDBProcess, DbEngine):
 
                         list_to_append.extend(outcomes)
 
+            elif collection_name == 'player_props_books':
+                sport_event_players_props = document.get("sport_event_players_props", {})
+                sport_event = sport_event_players_props.get('sport_event', {})
+                event_id = sport_event.get('id')
+
+                player_props = sport_event_players_props.get('players_props', [])
+                for player_prop in player_props:
+                    
+                    player = player_prop.get('player', {})
+                    player_id = player.get('id')
+
+                    markets = player_prop.get('markets', [])
+                    for market in markets:
+                        
+                        market_id = market.get('id')
+
+                        books = market.get('books', [])
+                        for book in books:
+                            book['sport_event_id'] = event_id
+                            book['player_id'] = player_id
+                            book['market_id'] = market_id
+
+                        list_to_append.extend(books)
+
 
             else:
                 # Evita KeyError caso a chave não exista
@@ -148,31 +174,33 @@ class ETLProcess(MongoDBProcess, DbEngine):
 
                 if collection == 'sport_event_markets':
                     df_normalized = df_normalized.drop(columns = ['books_outcomes']).reset_index(drop = True)
+                if collection == 'sport_event_player_props':
+                    df_normalized = df_normalized.drop(columns = ['markets_books']).reset_index(drop = True)
    
 
-                for col_normalized in df_normalized.columns:
-                    if df_normalized[col_normalized].apply(lambda x: isinstance(x, list)).any():
-                        df_normalized = df_normalized.explode(col_normalized).reset_index(drop = True)
+                # for col_normalized in df_normalized.columns:
+                #     if df_normalized[col_normalized].apply(lambda x: isinstance(x, list)).any():
+                #         df_normalized = df_normalized.explode(col_normalized).reset_index(drop = True)
 
 
-                        df_sub_normalized = pd.json_normalize(df_normalized[col_normalized])
-                        df_sub_normalized.columns = [
-                            f'{col_normalized}_{subcol}' for subcol in df_sub_normalized.columns
-                        ]
+                #         df_sub_normalized = pd.json_normalize(df_normalized[col_normalized])
+                #         df_sub_normalized.columns = [
+                #             f'{col_normalized}_{subcol}' for subcol in df_sub_normalized.columns
+                #         ]
 
-                        for sub_col_normalized in df_sub_normalized.columns:
-                            if df_sub_normalized[sub_col_normalized].apply(lambda x: isinstance(x, list)).any():
-                                df_sub_normalized = df_sub_normalized.explode(sub_col_normalized).reset_index(drop = True)
-                                df_max_normalized = pd.json_normalize(df_sub_normalized[sub_col_normalized])
-                                df_max_normalized.columns = [
-                                    f'{sub_col_normalized}_{subcol}' for subcol in df_max_normalized.columns
-                                ]
+                #         for sub_col_normalized in df_sub_normalized.columns:
+                #             if df_sub_normalized[sub_col_normalized].apply(lambda x: isinstance(x, list)).any():
+                #                 df_sub_normalized = df_sub_normalized.explode(sub_col_normalized).reset_index(drop = True)
+                #                 df_max_normalized = pd.json_normalize(df_sub_normalized[sub_col_normalized])
+                #                 df_max_normalized.columns = [
+                #                     f'{sub_col_normalized}_{subcol}' for subcol in df_max_normalized.columns
+                #                 ]
 
-                                df_sub_normalized = df_sub_normalized.drop(columns = [sub_col_normalized]).reset_index(drop = True)
-                                df_sub_normalized = pd.concat([df_sub_normalized, df_max_normalized], axis = 1)
+                #                 df_sub_normalized = df_sub_normalized.drop(columns = [sub_col_normalized]).reset_index(drop = True)
+                #                 df_sub_normalized = pd.concat([df_sub_normalized, df_max_normalized], axis = 1)
 
-                        df_normalized = df_normalized.drop(columns = [col_normalized]).reset_index(drop = True)
-                        df_normalized = pd.concat([df_normalized, df_sub_normalized], axis = 1)
+                #         df_normalized = df_normalized.drop(columns = [col_normalized]).reset_index(drop = True)
+                #         df_normalized = pd.concat([df_normalized, df_sub_normalized], axis = 1)
                         
 
 
